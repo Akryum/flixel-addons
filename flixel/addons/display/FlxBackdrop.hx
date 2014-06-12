@@ -1,11 +1,10 @@
 package flixel.addons.display;
 
-import flash.display.BitmapData;
-import flash.geom.Point;
-import flash.geom.Rectangle;
+import openfl.display.BitmapData;
+import openfl.geom.Point;
+import openfl.geom.Rectangle;
 import flixel.FlxG;
 import flixel.FlxSprite;
-import flixel.system.FlxAssets.FlxGraphicAsset;
 import flixel.system.layer.DrawStackItem;
 import flixel.system.layer.Region;
 import flixel.util.FlxDestroyUtil;
@@ -31,6 +30,10 @@ class FlxBackdrop extends FlxSprite
 	private var _data:BitmapData;
 	#end
 	
+	private var _graphic:Dynamic;
+	private var _scrollX:Float;
+	private var _scrollY:Float;
+	
 	/**
 	 * Creates an instance of the FlxBackdrop class, used to create infinitely scrolling backgrounds.
 	 * 
@@ -40,73 +43,18 @@ class FlxBackdrop extends FlxSprite
 	 * @param   RepeatX 	If the backdrop should repeat on the X axis.
 	 * @param   RepeatY 	If the backdrop should repeat on the Y axis.
 	 */
-	public function new(Graphic:FlxGraphicAsset, ScrollX:Float = 1, ScrollY:Float = 1, RepeatX:Bool = true, RepeatY:Bool = true) 
+	public function new(Graphic:Dynamic, ScrollX:Float = 1, ScrollY:Float = 1, RepeatX:Bool = true, RepeatY:Bool = true) 
 	{
 		super();
 		
-		cachedGraphics = FlxG.bitmap.add(Graphic);
-		
-		if (!Std.is(Graphic, TextureRegion))
-		{
-			region = new Region(0, 0, cachedGraphics.bitmap.width, cachedGraphics.bitmap.height);
-			region.width = cachedGraphics.bitmap.width;
-			region.height = cachedGraphics.bitmap.height;
-		}
-		else
-		{
-			region = cast(Graphic, TextureRegion).region.clone();
-		}
-		
-		var w:Int = region.width;
-		var h:Int = region.height;
-		
-		if (RepeatX) 
-		{
-			w += FlxG.width;
-		}
-		if (RepeatY) 
-		{
-			h += FlxG.height;
-		}
-		
-		#if FLX_RENDER_BLIT
-		_data = new BitmapData(w, h);
-		#end
-		_ppoint = new Point();
-		
-		_scrollW = region.width;
-		_scrollH = region.height;
 		_repeatX = RepeatX;
 		_repeatY = RepeatY;
 		
-		#if FLX_RENDER_TILE
-		_tileInfo = [];
-		_numTiles = 0;
-		#else
-		var regionRect:Rectangle = new Rectangle(region.startX, region.startY, region.width, region.height);
-		#end
+		_graphic = Graphic;
+		_scrollX = ScrollX;
+		_scrollY = ScrollY;
 		
-		while (_ppoint.y < h)
-		{
-			while (_ppoint.x < w)
-			{
-				#if FLX_RENDER_BLIT
-				_data.copyPixels(cachedGraphics.bitmap, regionRect, _ppoint);
-				#else
-				_tileInfo.push(_ppoint.x);
-				_tileInfo.push(_ppoint.y);
-				_numTiles++;
-				#end
-				_ppoint.x += region.width;
-			}
-			_ppoint.x = 0;
-			_ppoint.y += region.height;
-		}
-		
-		scrollFactor.x = ScrollX;
-		scrollFactor.y = ScrollY;
-		
-		updateFrameData();
+		updateTiling();
 	}
 	
 	override public function destroy():Void 
@@ -203,5 +151,73 @@ class FlxBackdrop extends FlxSprite
 			_tileID = cachedGraphics.tilesheet.addTileRect(new Rectangle(region.startX, region.startY, _scrollW, _scrollH), new Point());
 		}
 		#end
+	}
+	
+	/**
+	 * Update the texture tiling of the Backdrop. Call this if the screen is resized to make the Backdrop fit the new visible size properly.
+	 */
+	public function updateTiling():Void
+	{
+		cachedGraphics = FlxG.bitmap.add(_graphic);
+		
+		if (!Std.is(_graphic, TextureRegion))
+		{
+			region = new Region(0, 0, cachedGraphics.bitmap.width, cachedGraphics.bitmap.height);
+			region.width = cachedGraphics.bitmap.width;
+			region.height = cachedGraphics.bitmap.height;
+		}
+		else
+		{
+			region = cast(_graphic, TextureRegion).region.clone();
+		}
+		
+		var w:Int = region.width;
+		var h:Int = region.height;
+		
+		if (_repeatX) 
+		{
+			w += FlxG.width;
+		}
+		if (_repeatY) 
+		{
+			h += FlxG.height;
+		}
+		
+		#if FLX_RENDER_BLIT
+		_data = new BitmapData(w, h);
+		#end
+		_ppoint = new Point();
+		
+		_scrollW = region.width;
+		_scrollH = region.height;
+		
+		#if FLX_RENDER_TILE
+		_tileInfo = [];
+		_numTiles = 0;
+		#else
+		var regionRect:Rectangle = new Rectangle(region.startX, region.startY, region.width, region.height);
+		#end
+		
+		while (_ppoint.y < h)
+		{
+			while (_ppoint.x < w)
+			{
+				#if FLX_RENDER_BLIT
+				_data.copyPixels(cachedGraphics.bitmap, regionRect, _ppoint);
+				#else
+				_tileInfo.push(_ppoint.x);
+				_tileInfo.push(_ppoint.y);
+				_numTiles++;
+				#end
+				_ppoint.x += region.width;
+			}
+			_ppoint.x = 0;
+			_ppoint.y += region.height;
+		}
+		
+		scrollFactor.x = _scrollX;
+		scrollFactor.y = _scrollY;
+		
+		updateFrameData();
 	}
 }
